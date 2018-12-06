@@ -3,6 +3,8 @@
 using namespace std;
 Space_Marching::Space_Marching()
 {
+  velocitycoeffcient = 1000;
+  dpdx = 10;
   rho = 1.225;
   T = 293.0;
   Space_Marching::getviscosity();
@@ -11,16 +13,13 @@ Space_Marching::Space_Marching()
   boundaryvelocity = velocity * 0.995;
   Re = rho * velocity * width / viscosity;
   blasius = width * 5.3 / sqrt(Re);
-  nx = 50000;
+  nx = 100000;
   dx = width / (double)nx;
   //printf("%f\n",dx);
   ny = 200;
-  tempboundary = 0;
   ymax = blasius * 2.0;
-  dpdx = 0;
-  frontcoe = -0.000000000001;
-  backcoe = -0.000000000000001;
-  velocitycoeffcient = 0.000001;
+  frontcoe = -0.000000001;
+  backcoe = -0.0000000001;
   wingtop = nx / 4;
   dy = ymax / (double)ny;
   coordinatex = vector<double>(nx, 0);
@@ -129,8 +128,8 @@ void Space_Marching::boundary()
 
   for (int j = 0; j < nx; j++)
   {
-    boundaryY[j] = coordinatey[boundaryindex[j]] + wall_height(j);
-    wall[j] = wall_height(j);
+    boundaryY[j] = coordinatey[boundaryindex[j]];
+    wall[j] = wall_height(j) / 1000; //1/1000 scale
   }
   printf("nomal boundary ok\n");
   for (int j = 0; j < nx; j++)
@@ -143,9 +142,9 @@ void Space_Marching::boundary()
       tempboundarymomentum += xvelocitymatrix[i][j] / xvelocitymatrix[ny - 1][j] * (1 - xvelocitymatrix[i][j] / xvelocitymatrix[ny - 1][j]) * dy;
     }
     //printf("%f\n",xvelocitymatrix[ny - 2][j] );
-    excludeboundary[j] = tempboundary + wall_height(j);
-    momentumboundary[j] = tempboundarymomentum + wall_height(j);
-    intboundary[j] = 3.46 * sqrt(viscosity * coordinatex[j] / rho / xvelocitymatrix[ny - 1][j]) + wall_height(j);
+    excludeboundary[j] = tempboundary;
+    momentumboundary[j] = tempboundarymomentum;
+    intboundary[j] = 3.46 * sqrt(viscosity * coordinatex[j] / rho / xvelocitymatrix[ny - 1][j]);
   }
   printf("other-boundary ok\n");
 
@@ -178,9 +177,18 @@ void graphplotbl(Space_Marching cfd)
   plt::named_plot("ex_boundary", cfd.coordinatex, cfd.excludeboundary,"-b");
   plt::named_plot("mom_boundary", cfd.coordinatex, cfd.momentumboundary,"-y");
   plt::named_plot("int_boundary", cfd.coordinatex, cfd.intboundary,"-c");
-  plt::plot(cfd.coordinatex, cfd.wall, "-g");
   plt::legend();
-  plt::save("./boundary.pdf");
+  plt::save("./boundary_airfoil_pressure.pdf");
+  printf("boundary plot\n");
+}
+void graphplotwall(Space_Marching cfd)
+{
+  plt::title("boundary");
+  plt::xlabel("x");
+  plt::ylabel("y");
+  plt::plot(cfd.coordinatex, cfd.wall, "-k");
+  plt::save("./wall_airfoil_pressure.pdf");
+  printf("wall plot\n");
 }
 void graphplotfr(Space_Marching cfd)
 {
@@ -190,12 +198,14 @@ void graphplotfr(Space_Marching cfd)
   plt::named_plot("tau_w", cfd.coordinatex, cfd.wallfriction,"-c");
   plt::named_plot("int tau_w", cfd.coordinatex, cfd.intfriction,"--r");
   plt::legend();
-  plt::save("./wallfriction.pdf");
+  plt::save("./wallfriction_airfoil_pressure.pdf");
+  printf("wall friction plot\n");
 }
 int main(int argc, char** argv)
 {
   Space_Marching cfd;
-  graphplotbl(cfd);
+  //graphplotbl(cfd);
   //graphplotfr(cfd);
+  graphplotwall(cfd);
   return 0;
 }
