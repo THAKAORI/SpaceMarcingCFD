@@ -17,6 +17,9 @@ public:
   vector<double> wallfriction;
   vector<double> coordinatex;
   vector<double> coordinatey;
+  vector<double> intboundary;
+  vector<double> intfriction;
+  vector<double> wall;
 private:
   double rho;
   double T;
@@ -30,6 +33,10 @@ private:
   double ny;
   double ymax;
   double dy;
+  double wingblow;
+  double frontcoe;
+  double backcoe;
+  double wingtop;
   double dudy1;
   double dudy2;
   double dudx;
@@ -39,6 +46,8 @@ private:
   double tempboundary;
   double tempboundarymomentum;
   double dpdx;
+  double wallheight;
+  double velocitycoeffcient;
   vector<int> boundaryindex;
   vector<vector<double> > xvelocitymatrix;
   vector<vector<double> > yvelocitymatrix;
@@ -49,4 +58,5 @@ private:
   void boundary();
   void wall_friction();
   inline double wall_velocity(int i);
+  inline double wall_height(int i);
 };

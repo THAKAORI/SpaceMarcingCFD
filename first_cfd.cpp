@@ -18,6 +18,10 @@ Space_Marching::Space_Marching()
   tempboundary = 0;
   ymax = blasius * 2.0;
   dpdx = 0;
+  frontcoe = -0.000000000001;
+  backcoe = -0.000000000000001;
+  velocitycoeffcient = 0.000001;
+  wingtop = nx / 4;
   dy = ymax / (double)ny;
   coordinatex = vector<double>(nx, 0);
   coordinatey = vector<double>(ny, 0);
@@ -26,6 +30,9 @@ Space_Marching::Space_Marching()
   excludeboundary = vector<double>(nx, 0);
   momentumboundary = vector<double>(nx, 0);
   wallfriction = vector<double>(nx, 0);
+  intboundary = vector<double>(nx, 0);
+  intfriction = vector<double>(nx, 0);
+  wall = vector<double>(nx, 0);
   Space_Marching::getycoordinate();
   xvelocitymatrix = vector<vector<double> >(ny, vector<double>(nx + 1, 0));
   yvelocitymatrix = vector<vector<double> >(ny, vector<double>(nx + 1, 0));
@@ -94,7 +101,17 @@ void Space_Marching::update()
 }
 inline double Space_Marching::wall_velocity(int i)
 {
-  return 0;
+  if (i < wingtop)
+  {
+    wingblow = 2 * frontcoe * (i - wingtop);
+  } else
+  {
+    wingblow = 2 * backcoe * i + ((backcoe + frontcoe) * pow(wingtop, 2) - backcoe * pow((nx - 1), 2)) / ((nx - 1) - wingtop);
+  }
+  /*if (wingblow < 0){
+    printf("%f",wingblow);
+  }*/
+  return velocitycoeffcient * wingblow;
 }
 void Space_Marching::boundary()
 {
@@ -112,7 +129,8 @@ void Space_Marching::boundary()
 
   for (int j = 0; j < nx; j++)
   {
-    boundaryY[j] = coordinatey[boundaryindex[j]];
+    boundaryY[j] = coordinatey[boundaryindex[j]] + wall_height(j);
+    wall[j] = wall_height(j);
   }
   printf("nomal boundary ok\n");
   for (int j = 0; j < nx; j++)
@@ -125,36 +143,32 @@ void Space_Marching::boundary()
       tempboundarymomentum += xvelocitymatrix[i][j] / xvelocitymatrix[ny - 1][j] * (1 - xvelocitymatrix[i][j] / xvelocitymatrix[ny - 1][j]) * dy;
     }
     //printf("%f\n",xvelocitymatrix[ny - 2][j] );
-    excludeboundary[j] = tempboundary;
-    momentumboundary[j] = tempboundarymomentum;
+    excludeboundary[j] = tempboundary + wall_height(j);
+    momentumboundary[j] = tempboundarymomentum + wall_height(j);
+    intboundary[j] = 3.46 * sqrt(viscosity * coordinatex[j] / rho / xvelocitymatrix[ny - 1][j]) + wall_height(j);
   }
   printf("other-boundary ok\n");
-  /*plt::title("boundary");
-  plt::xlabel("x");
-  plt::ylabel("y");
-  plt::named_plot("nom_boundary", coordinatex, boundaryY,"-r");
-  plt::named_plot("ex_boundary", coordinatex, excludeboundary,"-b");
-  plt::named_plot("mom_boundary", coordinatex, momentumboundary,"-y");
-  plt::legend();
-  plt::save("./boundary.pdf");
-  */
+
 }
 void Space_Marching::wall_friction()
 {
   for (int i = 0; i < nx; i++)
   {
     wallfriction[i] = viscosity * (xvelocitymatrix[1][i] - xvelocitymatrix[0][i]) / dy * 2 / rho / pow(xvelocitymatrix[ny - 1][i], 2);
+    intfriction[i] = 0.289 * sqrt(viscosity * rho * pow(xvelocitymatrix[ny - 1][i], 3) / coordinatex[i]) * 2 / rho / pow(xvelocitymatrix[ny - 1][i], 2);
   }
-  /*
-  plt::title("friction-coeficient");
-  plt::xlabel("x");
-  plt::ylabel("friction-coeficient");
-  plt::named_plot("tau_w", coordinatex, wallfriction,"-c");
-  plt::legend();
-  plt::save("./wallfriction.pdf");
-  */
 }
-
+double Space_Marching::wall_height(int i)
+{
+  if (i < wingtop)
+  {
+    wallheight = frontcoe * i * (i - 2 * wingtop);
+  } else
+  {
+    wallheight = backcoe * pow(i, 2) + ((backcoe + frontcoe) * pow(wingtop, 2) - backcoe * pow((nx - 1), 2)) / ((nx - 1) - wingtop) * i - (backcoe * pow(nx - 1, 2) + (nx - 1) * ((backcoe + frontcoe) * pow(wingtop, 2) - backcoe * pow((nx - 1), 2)) / ((nx - 1) - wingtop));
+  }
+  return wallheight;
+}
 void graphplotbl(Space_Marching cfd)
 {
   plt::title("boundary");
@@ -163,6 +177,8 @@ void graphplotbl(Space_Marching cfd)
   plt::named_plot("nom_boundary", cfd.coordinatex, cfd.boundaryY,"-r");
   plt::named_plot("ex_boundary", cfd.coordinatex, cfd.excludeboundary,"-b");
   plt::named_plot("mom_boundary", cfd.coordinatex, cfd.momentumboundary,"-y");
+  plt::named_plot("int_boundary", cfd.coordinatex, cfd.intboundary,"-c");
+  plt::plot(cfd.coordinatex, cfd.wall, "-g");
   plt::legend();
   plt::save("./boundary.pdf");
 }
@@ -172,13 +188,14 @@ void graphplotfr(Space_Marching cfd)
   plt::xlabel("x");
   plt::ylabel("friction-coeficient");
   plt::named_plot("tau_w", cfd.coordinatex, cfd.wallfriction,"-c");
+  plt::named_plot("int tau_w", cfd.coordinatex, cfd.intfriction,"--r");
   plt::legend();
   plt::save("./wallfriction.pdf");
 }
 int main(int argc, char** argv)
 {
   Space_Marching cfd;
-  //graphplotbl(cfd);
-  graphplotfr(cfd);
+  graphplotbl(cfd);
+  //graphplotfr(cfd);
   return 0;
 }
